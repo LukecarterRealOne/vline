@@ -1,0 +1,60 @@
+name: Build VLine Aim Reach Add-on
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+
+      - name: Verify project files
+        shell: bash
+        run: |
+          test -f build.gradle
+          test -f settings.gradle
+          test -f gradle.properties
+          test -f src/main/resources/fabric.mod.json
+          test -f src/main/java/com/vlineaim/reach/VLineAimReachAddon.java
+
+      - name: Build mod
+        run: gradle --no-daemon clean build
+
+      - name: Prepare combined install bundle
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp build/libs/vlineaim-reach-addon-1.0.0.jar dist/
+          if [ -f reference/vlineaim-1.1.0-fast-fix.jar ]; then
+            cp reference/vlineaim-1.1.0-fast-fix.jar dist/
+          fi
+          cd dist
+          zip -9 -r ../vlineaim-with-reach.zip .
+
+      - name: Upload mod JAR and combined bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: vlineaim-reach-minecraft-26.1.2
+          path: |
+            build/libs/vlineaim-reach-addon-*.jar
+            vlineaim-with-reach.zip
+          if-no-files-found: error
+          retention-days: 14
